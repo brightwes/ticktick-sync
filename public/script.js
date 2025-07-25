@@ -19,26 +19,53 @@ class TaskTagger {
             window.history.replaceState({}, document.title, newUrl);
         }
         
-        this.loadTasks();
-        this.initializeElements();
+        // Initialize elements first
+        if (!this.initializeElements()) {
+            console.error('Failed to initialize elements, showing login prompt');
+            this.showLoginPrompt();
+            return;
+        }
+        
         this.bindEvents();
+        this.loadTasks();
     }
     
     initializeElements() {
-        this.taskContainer = document.getElementById('taskContainer');
-        this.loading = document.getElementById('loading');
-        this.refreshBtn = document.getElementById('refreshBtn');
-        this.nextBtn = document.getElementById('nextBtn');
-        this.resetBtn = document.getElementById('resetBtn');
-        this.totalTasksEl = document.getElementById('totalTasks');
-        this.processedTasksEl = document.getElementById('processedTasks');
-        this.remainingTasksEl = document.getElementById('remainingTasks');
+        try {
+            this.taskContainer = document.getElementById('taskContainer');
+            this.loading = document.getElementById('loading');
+            this.refreshBtn = document.getElementById('refreshBtn');
+            this.nextBtn = document.getElementById('nextBtn');
+            this.resetBtn = document.getElementById('resetBtn');
+            this.totalTasksEl = document.getElementById('totalTasks');
+            this.processedTasksEl = document.getElementById('processedTasks');
+            this.remainingTasksEl = document.getElementById('remainingTasks');
+            
+            if (!this.taskContainer) {
+                console.error('taskContainer element not found');
+                return false;
+            }
+            return true;
+        } catch (error) {
+            console.error('Error initializing elements:', error);
+            return false;
+        }
     }
     
     bindEvents() {
-        this.refreshBtn.addEventListener('click', () => this.loadTasks());
-        this.nextBtn.addEventListener('click', () => this.nextTask());
-        this.resetBtn.addEventListener('click', () => this.resetProcessedTasks());
+        try {
+            if (this.refreshBtn) {
+                this.refreshBtn.addEventListener('click', () => this.loadTasks());
+            }
+            if (this.nextBtn) {
+                this.nextBtn.addEventListener('click', () => this.nextTask());
+            }
+            if (this.resetBtn) {
+                this.resetBtn.addEventListener('click', () => this.resetProcessedTasks());
+            }
+        } catch (error) {
+            console.error('Error binding events:', error);
+        }
     }
     
     async loadTasks() {
@@ -300,5 +327,18 @@ class TaskTagger {
 // Initialize the application
 let taskTagger;
 document.addEventListener('DOMContentLoaded', () => {
-    taskTagger = new TaskTagger();
+    console.log('DOM loaded, initializing TaskTagger...');
+    
+    // Add a visible test message
+    const testDiv = document.createElement('div');
+    testDiv.style.cssText = 'position: fixed; top: 10px; right: 10px; background: red; color: white; padding: 10px; z-index: 9999;';
+    testDiv.textContent = 'JS LOADED';
+    document.body.appendChild(testDiv);
+    
+    try {
+        taskTagger = new TaskTagger();
+    } catch (error) {
+        console.error('Error initializing TaskTagger:', error);
+        testDiv.textContent = 'JS ERROR: ' + error.message;
+    }
 }); 
