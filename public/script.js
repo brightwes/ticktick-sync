@@ -33,9 +33,16 @@ class TaskTagger {
             const response = await fetch('/api/tasks');
             
             if (!response.ok) {
-                if (response.status === 401) {
-                    this.showLoginPrompt();
-                    return;
+                const errorData = await response.json();
+                if (response.status === 401 && errorData.requiresAuth) {
+                    if (errorData.authUrl) {
+                        // Redirect to TickTick OAuth2 authorization
+                        window.location.href = errorData.authUrl;
+                        return;
+                    } else {
+                        this.showLoginPrompt();
+                        return;
+                    }
                 }
                 throw new Error('Failed to fetch tasks');
             }
@@ -55,17 +62,18 @@ class TaskTagger {
         this.taskContainer.innerHTML = `
             <div class="no-tasks">
                 <i class="fas fa-lock"></i>
-                <h3>Configuration Required</h3>
-                <p>Please configure your TickTick credentials in the environment variables.</p>
-                <p>You need to add:</p>
-                <ul>
-                    <li>TICKTICK_CLIENT_ID</li>
-                    <li>TICKTICK_CLIENT_SECRET</li>
-                    <li>TICKTICK_USERNAME</li>
-                    <li>TICKTICK_PASSWORD</li>
-                </ul>
+                <h3>Authentication Required</h3>
+                <p>Please authenticate with TickTick to access your tasks.</p>
+                <button class="btn btn-primary" onclick="taskTagger.authenticateWithTickTick()">
+                    <i class="fas fa-sign-in-alt"></i> Login with TickTick
+                </button>
             </div>
         `;
+    }
+    
+    authenticateWithTickTick() {
+        // This will be handled by the API redirect
+        this.loadTasks();
     }
     
     showLoading() {

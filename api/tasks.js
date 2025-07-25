@@ -4,29 +4,19 @@ const axios = require('axios');
 const TICKTICK_API_BASE = 'https://api.ticktick.com/api/v2';
 let accessToken = null;
 
-// Authentication function for TickTick using username/password
-async function authenticateTickTick() {
-  try {
-    const response = await axios.post(`${TICKTICK_API_BASE}/oauth/token`, {
-      client_id: process.env.TICKTICK_CLIENT_ID,
-      client_secret: process.env.TICKTICK_CLIENT_SECRET,
-      grant_type: 'password',
-      username: process.env.TICKTICK_USERNAME || process.env.TICKTICK_EMAIL,
-      password: process.env.TICKTICK_PASSWORD
-    });
-    
-    accessToken = response.data.access_token;
-    return accessToken;
-  } catch (error) {
-    console.error('Authentication failed:', error.message);
-    throw error;
-  }
-}
+// OAuth2 Configuration
+const OAUTH_CONFIG = {
+  client_id: process.env.TICKTICK_CLIENT_ID,
+  client_secret: process.env.TICKTICK_CLIENT_SECRET,
+  redirect_uri: process.env.TICKTICK_REDIRECT_URI || 'https://ticktick-sync.vercel.app/auth/callback',
+  auth_url: 'https://ticktick.com/oauth/authorize',
+  token_url: 'https://api.ticktick.com/oauth/token'
+};
 
 // Get tasks from TickTick
 async function getTasks() {
   if (!accessToken) {
-    await authenticateTickTick();
+    throw new Error('No access token available. Please authenticate first.');
   }
   
   try {
@@ -116,41 +106,19 @@ module.exports = async (req, res) => {
       res.json(tasksWithSuggestions);
     } catch (authError) {
       console.error('Authentication error:', authError.message);
-      // If authentication fails, return mock data for now
-      const mockTasks = [
-        {
-          id: '1',
-          title: 'Complete project proposal',
-          content: 'Finish the quarterly project proposal for the marketing team',
-          dueDate: '2025-07-30',
-          projectName: 'Work',
-          priority: 'High',
-          tags: [],
-          suggestedTags: ['work', 'important', 'project']
-        },
-        {
-          id: '2',
-          title: 'Buy groceries',
-          content: 'Get milk, bread, eggs, and vegetables for the week',
-          dueDate: '2025-07-26',
-          projectName: 'Personal',
-          priority: 'Normal',
-          tags: [],
-          suggestedTags: ['personal', 'shopping']
-        },
-        {
-          id: '3',
-          title: 'Review code changes',
-          content: 'Review the latest pull request for the authentication module',
-          dueDate: '2025-07-28',
-          projectName: 'Work',
-          priority: 'High',
-          tags: [],
-          suggestedTags: ['work', 'review', 'important']
-        }
-      ];
+      // Return OAuth2 auth URL for frontend to handle
+      const authUrl = `${OAUTH_CONFIG.auth_url}?` +
+        `client_id=${OAUTH_CONFIG.client_id}&` +
+        `redirect_uri=${encodeURIComponent(OAUTH_CONFIG.redirect_uri)}&` +
+        `response_type=code&` +
+        `scope=read write&` +
+        `state=${Math.random().toString(36).substring(7)}`;
       
-      res.json(mockTasks);
+      res.status(401).json({ 
+        error: 'OAuth2 authentication required',
+        requiresAuth: true,
+        authUrl: authUrl
+      });
     }
   } catch (error) {
     console.error('Error fetching tasks:', error);

@@ -4,29 +4,10 @@ const axios = require('axios');
 const TICKTICK_API_BASE = 'https://api.ticktick.com/api/v2';
 let accessToken = null;
 
-// Authentication function for TickTick using username/password
-async function authenticateTickTick() {
-  try {
-    const response = await axios.post(`${TICKTICK_API_BASE}/oauth/token`, {
-      client_id: process.env.TICKTICK_CLIENT_ID,
-      client_secret: process.env.TICKTICK_CLIENT_SECRET,
-      grant_type: 'password',
-      username: process.env.TICKTICK_USERNAME || process.env.TICKTICK_EMAIL,
-      password: process.env.TICKTICK_PASSWORD
-    });
-    
-    accessToken = response.data.access_token;
-    return accessToken;
-  } catch (error) {
-    console.error('Authentication failed:', error.message);
-    throw error;
-  }
-}
-
 // Update task with tags
 async function updateTask(taskId, tags) {
   if (!accessToken) {
-    await authenticateTickTick();
+    throw new Error('No access token available. Please authenticate first.');
   }
   
   try {
