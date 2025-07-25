@@ -12,11 +12,17 @@
       "dest": "/server.js"
     },
     {
+      "src": "/auth/(.*)",
+      "dest": "/server.js"
+    },
+    {
       "src": "/(.*)",
       "dest": "/public/$1"
     }
   ],
-  "env": {
-    "NODE_ENV": "production"
+  "functions": {
+    "server.js": {
+      "maxDuration": 30
+    }
   }
 } 
