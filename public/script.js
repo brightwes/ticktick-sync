@@ -6,7 +6,7 @@ class TaskTagger {
         
         this.initializeElements();
         this.bindEvents();
-        this.loadTasks();
+        this.initializeClerk();
     }
     
     initializeElements() {
@@ -15,8 +15,6 @@ class TaskTagger {
         this.refreshBtn = document.getElementById('refreshBtn');
         this.nextBtn = document.getElementById('nextBtn');
         this.resetBtn = document.getElementById('resetBtn');
-        this.loginBtn = document.getElementById('loginBtn');
-        this.authStatus = document.getElementById('authStatus');
         this.totalTasksEl = document.getElementById('totalTasks');
         this.processedTasksEl = document.getElementById('processedTasks');
         this.remainingTasksEl = document.getElementById('remainingTasks');
@@ -26,17 +24,46 @@ class TaskTagger {
         this.refreshBtn.addEventListener('click', () => this.loadTasks());
         this.nextBtn.addEventListener('click', () => this.nextTask());
         this.resetBtn.addEventListener('click', () => this.resetProcessedTasks());
-        this.loginBtn.addEventListener('click', () => this.login());
+    }
+    
+    async initializeClerk() {
+        try {
+            await Clerk.load({
+                publishableKey: 'pk_test_YOUR_CLERK_PUBLISHABLE_KEY' // Replace with your actual key
+            });
+            
+            // Listen for authentication state changes
+            Clerk.addListener(({ user }) => {
+                if (user) {
+                    this.loadTasks();
+                } else {
+                    this.showLoginPrompt();
+                }
+            });
+            
+            // Check initial auth state
+            if (Clerk.user) {
+                this.loadTasks();
+            } else {
+                this.showLoginPrompt();
+            }
+        } catch (error) {
+            console.error('Failed to initialize Clerk:', error);
+            this.showLoginPrompt();
+        }
     }
     
     async loadTasks() {
         try {
             this.showLoading();
-            const response = await fetch('/api/tasks');
+            const response = await fetch('/api/tasks', {
+                headers: {
+                    'Authorization': `Bearer ${await Clerk.session?.getToken()}`
+                }
+            });
             
             if (!response.ok) {
-                const errorData = await response.json().catch(() => ({}));
-                if (response.status === 401 && errorData.requiresAuth) {
+                if (response.status === 401) {
                     this.showLoginPrompt();
                     return;
                 }
@@ -55,21 +82,19 @@ class TaskTagger {
     }
     
     showLoginPrompt() {
-        this.loginBtn.style.display = 'inline-flex';
         this.taskContainer.innerHTML = `
             <div class="no-tasks">
                 <i class="fas fa-lock"></i>
                 <h3>Authentication Required</h3>
-                <p>Please login with your TickTick account to access your tasks.</p>
-                <button class="btn btn-primary" onclick="taskTagger.login()" style="margin-top: 20px;">
-                    <i class="fas fa-sign-in-alt"></i> Login with TickTick
-                </button>
+                <p>Please sign in to access your TickTick tasks.</p>
+                <div id="clerk-sign-in-container"></div>
             </div>
         `;
-    }
-    
-    login() {
-        window.location.href = '/auth/login';
+        
+        // Mount Clerk sign-in component
+        if (Clerk.mountSignIn) {
+            Clerk.mountSignIn('#clerk-sign-in-container');
+        }
     }
     
     showLoading() {
@@ -108,22 +133,6 @@ class TaskTagger {
                 <i class="fas fa-info-circle"></i>
                 <h3>No Tasks Found</h3>
                 <p>Either you have no unprocessed tasks, or you need to authenticate first.</p>
-                <button class="btn btn-primary" onclick="taskTagger.login()" style="margin-top: 20px;">
-                    <i class="fas fa-sign-in-alt"></i> Login with TickTick
-                </button>
-            </div>
-        `;
-    }
-    
-    showNoTasks() {
-        this.taskContainer.innerHTML = `
-            <div class="no-tasks">
-                <i class="fas fa-info-circle"></i>
-                <h3>No Tasks Found</h3>
-                <p>Either you have no unprocessed tasks, or you need to authenticate first.</p>
-                <button class="btn btn-primary" onclick="taskTagger.login()" style="margin-top: 20px;">
-                    <i class="fas fa-sign-in-alt"></i> Login with TickTick
-                </button>
             </div>
         `;
         this.nextBtn.style.display = 'none';
@@ -210,7 +219,8 @@ class TaskTagger {
             const response = await fetch(`/api/tasks/${task.id}/tags`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': `Bearer ${await Clerk.session?.getToken()}`
                 },
                 body: JSON.stringify({ tags: selectedTags })
             });
@@ -254,7 +264,10 @@ class TaskTagger {
     async resetProcessedTasks() {
         try {
             const response = await fetch('/api/reset-processed', {
-                method: 'POST'
+                method: 'POST',
+                headers: {
+                    'Authorization': `Bearer ${await Clerk.session?.getToken()}`
+                }
             });
             
             if (response.ok) {
@@ -264,7 +277,7 @@ class TaskTagger {
             console.error('Failed to reset processed tasks:', error);
         }
     }
-
+    
     escapeHtml(text) {
         const div = document.createElement('div');
         div.textContent = text;

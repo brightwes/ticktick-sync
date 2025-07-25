@@ -1,6 +1,7 @@
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
+const { ClerkExpressWithAuth } = require('@clerk/clerk-sdk-node');
 require('dotenv').config();
 
 const app = express();
@@ -11,67 +12,20 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
+// Clerk middleware
+const clerk = ClerkExpressWithAuth({
+  secretKey: process.env.CLERK_SECRET_KEY,
+  publishableKey: process.env.CLERK_PUBLISHABLE_KEY
+});
+
+app.use(clerk);
+
 // TickTick API configuration
 const TICKTICK_API_BASE = 'https://api.ticktick.com/api/v2';
 let accessToken = null;
-let refreshToken = null;
 
-// OAuth2 Configuration
-const OAUTH_CONFIG = {
-  client_id: process.env.TICKTICK_CLIENT_ID,
-  client_secret: process.env.TICKTICK_CLIENT_SECRET,
-  redirect_uri: process.env.TICKTICK_REDIRECT_URI || 'https://your-app.vercel.app/auth/callback',
-  auth_url: 'https://ticktick.com/oauth/authorize',
-  token_url: 'https://api.ticktick.com/oauth/token'
-};
-
-// OAuth2 Routes
-app.get('/auth/login', (req, res) => {
-  const authUrl = `${OAUTH_CONFIG.auth_url}?` +
-    `client_id=${OAUTH_CONFIG.client_id}&` +
-    `redirect_uri=${encodeURIComponent(OAUTH_CONFIG.redirect_uri)}&` +
-    `response_type=code&` +
-    `scope=read write&` +
-    `state=${Math.random().toString(36).substring(7)}`;
-  
-  res.redirect(authUrl);
-});
-
-app.get('/auth/callback', async (req, res) => {
-  const { code, state } = req.query;
-  
-  if (!code) {
-    return res.redirect('/?error=no_code');
-  }
-  
-  try {
-    const tokenResponse = await axios.post(OAUTH_CONFIG.token_url, {
-      client_id: OAUTH_CONFIG.client_id,
-      client_secret: OAUTH_CONFIG.client_secret,
-      code: code,
-      grant_type: 'authorization_code',
-      redirect_uri: OAUTH_CONFIG.redirect_uri
-    });
-    
-    accessToken = tokenResponse.data.access_token;
-    refreshToken = tokenResponse.data.refresh_token;
-    
-    // Store tokens securely (in production, use a database)
-    console.log('OAuth2 authentication successful');
-    
-    res.redirect('/?auth=success');
-  } catch (error) {
-    console.error('OAuth2 error:', error.response?.data || error.message);
-    res.redirect('/?error=auth_failed');
-  }
-});
-
-// Authentication function (fallback for username/password)
+// Authentication function for TickTick
 async function authenticateTickTick() {
-  if (accessToken) {
-    return accessToken;
-  }
-  
   try {
     const response = await axios.post(`${TICKTICK_API_BASE}/oauth/token`, {
       client_id: process.env.TICKTICK_CLIENT_ID,
@@ -85,29 +39,6 @@ async function authenticateTickTick() {
     return accessToken;
   } catch (error) {
     console.error('Authentication failed:', error.message);
-    throw error;
-  }
-}
-
-// Refresh token function
-async function refreshAccessToken() {
-  if (!refreshToken) {
-    throw new Error('No refresh token available');
-  }
-  
-  try {
-    const response = await axios.post(OAUTH_CONFIG.token_url, {
-      client_id: OAUTH_CONFIG.client_id,
-      client_secret: OAUTH_CONFIG.client_secret,
-      refresh_token: refreshToken,
-      grant_type: 'refresh_token'
-    });
-    
-    accessToken = response.data.access_token;
-    refreshToken = response.data.refresh_token;
-    return accessToken;
-  } catch (error) {
-    console.error('Token refresh failed:', error.message);
     throw error;
   }
 }
@@ -128,11 +59,6 @@ async function getTasks() {
     
     return response.data;
   } catch (error) {
-    if (error.response?.status === 401) {
-      // Token expired, try to refresh
-      await refreshAccessToken();
-      return getTasks(); // Retry with new token
-    }
     console.error('Failed to fetch tasks:', error.message);
     throw error;
   }
@@ -159,11 +85,6 @@ async function updateTask(taskId, tags) {
     
     return response.data;
   } catch (error) {
-    if (error.response?.status === 401) {
-      // Token expired, try to refresh
-      await refreshAccessToken();
-      return updateTask(taskId, tags); // Retry with new token
-    }
     console.error('Failed to update task:', error.message);
     throw error;
   }
@@ -206,33 +127,15 @@ function suggestTags(taskTitle, taskContent = '') {
 
 // API Routes
 app.get('/api/tasks', async (req, res) => {
-  console.log('API /api/tasks called');
-  console.log('Environment variables:', {
-    hasClientId: !!process.env.TICKTICK_CLIENT_ID,
-    hasClientSecret: !!process.env.TICKTICK_CLIENT_SECRET,
-    hasAccessToken: !!accessToken
-  });
-  
   try {
-    // Check if we have OAuth2 credentials
-    if (!process.env.TICKTICK_CLIENT_ID || !process.env.TICKTICK_CLIENT_SECRET) {
-      console.log('No OAuth2 credentials configured');
-      return res.status(401).json({ 
-        error: 'OAuth2 credentials not configured',
-        requiresAuth: true 
-      });
-    }
-
-    // Check if we have an access token
-    if (!accessToken) {
-      console.log('No access token available');
+    // Check if user is authenticated with Clerk
+    if (!req.auth.userId) {
       return res.status(401).json({ 
         error: 'Not authenticated',
         requiresAuth: true 
       });
     }
 
-    console.log('Fetching tasks from TickTick...');
     const tasks = await getTasks();
     // Filter for unprocessed tasks (no "processed" tag)
     const unprocessedTasks = tasks.filter(task => 
@@ -245,7 +148,6 @@ app.get('/api/tasks', async (req, res) => {
       suggestedTags: suggestTags(task.title, task.content)
     }));
     
-    console.log(`Found ${tasksWithSuggestions.length} unprocessed tasks`);
     res.json(tasksWithSuggestions);
   } catch (error) {
     console.error('Error fetching tasks:', error);
@@ -255,6 +157,11 @@ app.get('/api/tasks', async (req, res) => {
 
 app.post('/api/tasks/:taskId/tags', async (req, res) => {
   try {
+    // Check if user is authenticated with Clerk
+    if (!req.auth.userId) {
+      return res.status(401).json({ error: 'Not authenticated' });
+    }
+
     const { taskId } = req.params;
     const { tags } = req.body;
     
