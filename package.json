@@ -1,6 +1,6 @@
 {
   "name": "ticktick-sync",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "description": "Automated task tagging system for TickTick",
   "main": "server.js",
   "scripts": {

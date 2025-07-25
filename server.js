@@ -271,7 +271,11 @@ app.get('/api/health', (req, res) => {
 
 // Simple test route
 app.get('/test', (req, res) => {
-  res.json({ message: 'Server is running!', env: process.env.NODE_ENV });
+  res.json({ 
+    message: 'Server is running!', 
+    timestamp: new Date().toISOString(),
+    env: process.env.NODE_ENV || 'development'
+  });
 });
 
 // Serve the main application
