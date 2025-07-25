@@ -35,7 +35,8 @@ class TaskTagger {
             const response = await fetch('/api/tasks');
             
             if (!response.ok) {
-                if (response.status === 401) {
+                const errorData = await response.json().catch(() => ({}));
+                if (response.status === 401 && errorData.requiresAuth) {
                     this.showLoginPrompt();
                     return;
                 }
@@ -60,6 +61,9 @@ class TaskTagger {
                 <i class="fas fa-lock"></i>
                 <h3>Authentication Required</h3>
                 <p>Please login with your TickTick account to access your tasks.</p>
+                <button class="btn btn-primary" onclick="taskTagger.login()" style="margin-top: 20px;">
+                    <i class="fas fa-sign-in-alt"></i> Login with TickTick
+                </button>
             </div>
         `;
     }
