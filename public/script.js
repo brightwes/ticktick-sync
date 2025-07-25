@@ -1,5 +1,6 @@
 class TaskTagger {
     constructor() {
+        console.log('TaskTagger constructor called');
         this.tasks = [];
         this.currentTaskIndex = 0;
         this.processedTasks = 0;
@@ -19,7 +20,8 @@ class TaskTagger {
         }
         
         this.loadTasks();
-        this.setupEventListeners();
+        this.initializeElements();
+        this.bindEvents();
     }
     
     initializeElements() {
@@ -43,20 +45,28 @@ class TaskTagger {
         try {
             this.showLoading();
             
+            console.log('Fetching tasks from /api/tasks...');
             const response = await fetch('/api/tasks', {
                 headers: this.accessToken ? {
                     'Authorization': `Bearer ${this.accessToken}`
                 } : {}
             });
             
+            console.log('Response status:', response.status);
+            console.log('Response ok:', response.ok);
+            
             if (!response.ok) {
                 const errorData = await response.json();
+                console.log('Error data:', errorData);
+                
                 if (response.status === 401 && errorData.requiresAuth) {
                     if (errorData.authUrl) {
+                        console.log('Redirecting to auth URL:', errorData.authUrl);
                         // Redirect to TickTick OAuth2 authorization
                         window.location.href = errorData.authUrl;
                         return;
                     } else {
+                        console.log('Showing login prompt');
                         this.showLoginPrompt();
                         return;
                     }
@@ -71,6 +81,7 @@ class TaskTagger {
             this.updateStats();
             this.showCurrentTask();
         } catch (error) {
+            console.error('Error in loadTasks:', error);
             this.showError('Failed to load tasks: ' + error.message);
         }
     }
