@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TickTick Task Tagger</title>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link href="styles.css" rel="stylesheet">
+</head>
+<body>
+    <div class="container">
+        <header class="header">
+            <h1><i class="fas fa-tags"></i> TickTick Task Tagger</h1>
+            <p>Automatically tag your unprocessed tasks</p>
+            <div class="auth-section">
+                <button class="btn btn-outline" id="loginBtn" style="display: none;">
+                    <i class="fas fa-sign-in-alt"></i> Login with TickTick
+                </button>
+                <span id="authStatus" style="display: none;"></span>
+            </div>
+        </header>
+
+        <div class="stats-bar">
+            <div class="stat">
+                <span class="stat-number" id="totalTasks">0</span>
+                <span class="stat-label">Total Tasks</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number" id="processedTasks">0</span>
+                <span class="stat-label">Processed</span>
+            </div>
+            <div class="stat">
+                <span class="stat-number" id="remainingTasks">0</span>
+                <span class="stat-label">Remaining</span>
+            </div>
+        </div>
+
+        <div class="task-container" id="taskContainer">
+            <div class="loading" id="loading">
+                <i class="fas fa-spinner fa-spin"></i>
+                <p>Loading tasks...</p>
+            </div>
+        </div>
+
+        <div class="controls">
+            <button class="btn btn-secondary" id="refreshBtn">
+                <i class="fas fa-sync-alt"></i> Refresh Tasks
+            </button>
+            <button class="btn btn-warning" id="resetBtn">
+                <i class="fas fa-undo"></i> Reset All Tasks
+            </button>
+            <button class="btn btn-primary" id="nextBtn" style="display: none;">
+                <i class="fas fa-arrow-right"></i> Next Task
+            </button>
+        </div>
+    </div>
+
+    <script src="script.js"></script>
+</body>
+</html> 
