@@ -105,9 +105,25 @@ class TaskTagger {
     showNoTasks() {
         this.taskContainer.innerHTML = `
             <div class="no-tasks">
-                <i class="fas fa-check-circle"></i>
-                <h3>All Done!</h3>
-                <p>No unprocessed tasks found. All tasks have been tagged.</p>
+                <i class="fas fa-info-circle"></i>
+                <h3>No Tasks Found</h3>
+                <p>Either you have no unprocessed tasks, or you need to authenticate first.</p>
+                <button class="btn btn-primary" onclick="taskTagger.login()" style="margin-top: 20px;">
+                    <i class="fas fa-sign-in-alt"></i> Login with TickTick
+                </button>
+            </div>
+        `;
+    }
+    
+    showNoTasks() {
+        this.taskContainer.innerHTML = `
+            <div class="no-tasks">
+                <i class="fas fa-info-circle"></i>
+                <h3>No Tasks Found</h3>
+                <p>Either you have no unprocessed tasks, or you need to authenticate first.</p>
+                <button class="btn btn-primary" onclick="taskTagger.login()" style="margin-top: 20px;">
+                    <i class="fas fa-sign-in-alt"></i> Login with TickTick
+                </button>
             </div>
         `;
         this.nextBtn.style.display = 'none';
