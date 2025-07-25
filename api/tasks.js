@@ -112,7 +112,11 @@ module.exports = async (req, res) => {
         `redirect_uri=${encodeURIComponent(OAUTH_CONFIG.redirect_uri)}&` +
         `response_type=code&` +
         `scope=tasks:read tasks:write&` +
-        `state=${Math.random().toString(36).substring(7)}`;
+        `state=${Math.random().toString(36).substring(7)}&` +
+        `_cb=${Date.now()}`;
+      
+      console.log('OAuth2 redirect URI:', OAUTH_CONFIG.redirect_uri);
+      console.log('Environment variable:', process.env.TICKTICK_REDIRECT_URI);
       
       res.status(401).json({ 
         error: 'OAuth2 authentication required',
