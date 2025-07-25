@@ -241,6 +241,11 @@ app.get('/api/health', (req, res) => {
   res.json({ status: 'OK', timestamp: new Date().toISOString() });
 });
 
+// Simple test route
+app.get('/test', (req, res) => {
+  res.json({ message: 'Server is running!', env: process.env.NODE_ENV });
+});
+
 // Serve the main application
 app.get('/', (req, res) => {
   res.sendFile(__dirname + '/public/index.html');
