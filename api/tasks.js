@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // TickTick API configuration
-const TICKTICK_API_BASE = 'https://api.ticktick.com/api/v2';
+const TICKTICK_API_BASE = 'https://api.ticktick.com/api';
 let accessToken = null;
 
 // OAuth2 Configuration
@@ -111,7 +111,7 @@ module.exports = async (req, res) => {
         `client_id=${OAUTH_CONFIG.client_id}&` +
         `redirect_uri=${encodeURIComponent(OAUTH_CONFIG.redirect_uri)}&` +
         `response_type=code&` +
-        `scope=read write&` +
+        `scope=tasks:read tasks:write&` +
         `state=${Math.random().toString(36).substring(7)}`;
       
       res.status(401).json({ 

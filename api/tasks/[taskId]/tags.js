@@ -1,7 +1,7 @@
 const axios = require('axios');
 
 // TickTick API configuration
-const TICKTICK_API_BASE = 'https://api.ticktick.com/api/v2';
+const TICKTICK_API_BASE = 'https://api.ticktick.com/api';
 let accessToken = null;
 
 // Update task with tags
