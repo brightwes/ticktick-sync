@@ -8,7 +8,7 @@ let accessToken = null;
 const OAUTH_CONFIG = {
   client_id: process.env.TICKTICK_CLIENT_ID,
   client_secret: process.env.TICKTICK_CLIENT_SECRET,
-  redirect_uri: process.env.TICKTICK_REDIRECT_URI || 'https://ticktick-sync.vercel.app/auth/callback',
+  redirect_uri: process.env.TICKTICK_REDIRECT_URI || 'https://ticktick-sync.vercel.app/api/callback',
   auth_url: 'https://ticktick.com/oauth/authorize',
   token_url: 'https://api.ticktick.com/oauth/token'
 };
