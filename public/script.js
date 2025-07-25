@@ -3,10 +3,23 @@ class TaskTagger {
         this.tasks = [];
         this.currentTaskIndex = 0;
         this.processedTasks = 0;
+        this.accessToken = null;
+        this.init();
+    }
+
+    init() {
+        // Check for access token in URL
+        const urlParams = new URLSearchParams(window.location.search);
+        const token = urlParams.get('token');
+        if (token) {
+            this.accessToken = token;
+            // Clear the token from URL
+            const newUrl = window.location.pathname;
+            window.history.replaceState({}, document.title, newUrl);
+        }
         
-        this.initializeElements();
-        this.bindEvents();
         this.loadTasks();
+        this.setupEventListeners();
     }
     
     initializeElements() {
@@ -30,7 +43,11 @@ class TaskTagger {
         try {
             this.showLoading();
             
-            const response = await fetch('/api/tasks');
+            const response = await fetch('/api/tasks', {
+                headers: this.accessToken ? {
+                    'Authorization': `Bearer ${this.accessToken}`
+                } : {}
+            });
             
             if (!response.ok) {
                 const errorData = await response.json();
@@ -190,32 +207,41 @@ class TaskTagger {
     }
     
     async saveTask() {
-        const task = this.tasks[this.currentTaskIndex];
-        const selectedTags = Array.from(document.querySelectorAll('.tag-checkbox:checked'))
+        const selectedTags = Array.from(document.querySelectorAll('input[name="tags"]:checked'))
             .map(checkbox => checkbox.value);
         
+        if (selectedTags.length === 0) {
+            alert('Please select at least one tag');
+            return;
+        }
+
         try {
-            const response = await fetch(`/api/tasks/${task.id}/tags`, {
+            const currentTask = this.tasks[this.currentTaskIndex];
+            const response = await fetch(`/api/tasks/${currentTask.id}/tags`, {
                 method: 'POST',
                 headers: {
-                    'Content-Type': 'application/json'
+                    'Content-Type': 'application/json',
+                    'Authorization': this.accessToken ? `Bearer ${this.accessToken}` : ''
                 },
                 body: JSON.stringify({ tags: selectedTags })
             });
-            
+
             if (!response.ok) {
-                throw new Error('Failed to update task');
+                throw new Error('Failed to save task');
             }
-            
-            // Mark task as processed
+
+            // Mark as processed and move to next
             this.processedTasks++;
+            this.currentTaskIndex++;
             this.updateStats();
             
-            // Move to next task
-            this.nextTask();
-            
+            if (this.currentTaskIndex >= this.tasks.length) {
+                this.showCompletion();
+            } else {
+                this.showCurrentTask();
+            }
         } catch (error) {
-            alert('Failed to save task: ' + error.message);
+            this.showError('Failed to save task: ' + error.message);
         }
     }
     
