@@ -28,6 +28,13 @@ class TaskTagger {
     
     async initializeClerk() {
         try {
+            // Check if Clerk is available
+            if (typeof Clerk === 'undefined') {
+                console.log('Clerk not available, proceeding without authentication');
+                this.loadTasks();
+                return;
+            }
+            
             await Clerk.load({
                 publishableKey: 'pk_test_YOUR_CLERK_PUBLISHABLE_KEY' // Replace with your actual key
             });
@@ -49,18 +56,29 @@ class TaskTagger {
             }
         } catch (error) {
             console.error('Failed to initialize Clerk:', error);
-            this.showLoginPrompt();
+            // If Clerk fails, try to load tasks anyway
+            this.loadTasks();
         }
     }
     
     async loadTasks() {
         try {
             this.showLoading();
-            const response = await fetch('/api/tasks', {
-                headers: {
-                    'Authorization': `Bearer ${await Clerk.session?.getToken()}`
+            
+            // Prepare headers
+            const headers = {};
+            if (typeof Clerk !== 'undefined' && Clerk.session) {
+                try {
+                    const token = await Clerk.session.getToken();
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                } catch (error) {
+                    console.log('No Clerk token available');
                 }
-            });
+            }
+            
+            const response = await fetch('/api/tasks', { headers });
             
             if (!response.ok) {
                 if (response.status === 401) {
@@ -91,8 +109,8 @@ class TaskTagger {
             </div>
         `;
         
-        // Mount Clerk sign-in component
-        if (Clerk.mountSignIn) {
+        // Mount Clerk sign-in component if available
+        if (typeof Clerk !== 'undefined' && Clerk.mountSignIn) {
             Clerk.mountSignIn('#clerk-sign-in-container');
         }
     }
@@ -216,12 +234,25 @@ class TaskTagger {
             .map(checkbox => checkbox.value);
         
         try {
+            // Prepare headers
+            const headers = {
+                'Content-Type': 'application/json'
+            };
+            
+            if (typeof Clerk !== 'undefined' && Clerk.session) {
+                try {
+                    const token = await Clerk.session.getToken();
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                } catch (error) {
+                    console.log('No Clerk token available');
+                }
+            }
+            
             const response = await fetch(`/api/tasks/${task.id}/tags`, {
                 method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'Authorization': `Bearer ${await Clerk.session?.getToken()}`
-                },
+                headers,
                 body: JSON.stringify({ tags: selectedTags })
             });
             
@@ -263,11 +294,23 @@ class TaskTagger {
     // Add method to reset processed tasks (for testing)
     async resetProcessedTasks() {
         try {
+            // Prepare headers
+            const headers = {};
+            
+            if (typeof Clerk !== 'undefined' && Clerk.session) {
+                try {
+                    const token = await Clerk.session.getToken();
+                    if (token) {
+                        headers['Authorization'] = `Bearer ${token}`;
+                    }
+                } catch (error) {
+                    console.log('No Clerk token available');
+                }
+            }
+            
             const response = await fetch('/api/reset-processed', {
                 method: 'POST',
-                headers: {
-                    'Authorization': `Bearer ${await Clerk.session?.getToken()}`
-                }
+                headers
             });
             
             if (response.ok) {
