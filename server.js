@@ -11,21 +11,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.static('public'));
 
-// Optional Clerk middleware
-let clerk = null;
-if (process.env.CLERK_SECRET_KEY && process.env.CLERK_PUBLISHABLE_KEY) {
-  try {
-    const { ClerkExpressWithAuth } = require('@clerk/clerk-sdk-node');
-    clerk = ClerkExpressWithAuth({
-      secretKey: process.env.CLERK_SECRET_KEY,
-      publishableKey: process.env.CLERK_PUBLISHABLE_KEY
-    });
-    app.use(clerk);
-  } catch (error) {
-    console.log('Clerk not available:', error.message);
-  }
-}
-
 // TickTick API configuration
 const TICKTICK_API_BASE = 'https://api.ticktick.com/api/v2';
 let accessToken = null;
@@ -131,26 +116,9 @@ function suggestTags(taskTitle, taskContent = '') {
   return suggestions;
 }
 
-// Helper function to check authentication
-function isAuthenticated(req) {
-  if (clerk && req.auth) {
-    return !!req.auth.userId;
-  }
-  // If Clerk is not configured, allow access (for testing)
-  return true;
-}
-
 // API Routes
 app.get('/api/tasks', async (req, res) => {
   try {
-    // Check if user is authenticated (if Clerk is configured)
-    if (!isAuthenticated(req)) {
-      return res.status(401).json({ 
-        error: 'Not authenticated',
-        requiresAuth: true 
-      });
-    }
-
     // Check if TickTick credentials are configured
     if (!process.env.TICKTICK_CLIENT_ID || !process.env.TICKTICK_CLIENT_SECRET) {
       return res.status(401).json({ 
@@ -180,11 +148,6 @@ app.get('/api/tasks', async (req, res) => {
 
 app.post('/api/tasks/:taskId/tags', async (req, res) => {
   try {
-    // Check if user is authenticated (if Clerk is configured)
-    if (!isAuthenticated(req)) {
-      return res.status(401).json({ error: 'Not authenticated' });
-    }
-
     const { taskId } = req.params;
     const { tags } = req.body;
     
@@ -205,7 +168,6 @@ app.get('/test', (req, res) => {
     message: 'Server is running!', 
     timestamp: new Date().toISOString(),
     env: process.env.NODE_ENV || 'development',
-    hasClerk: !!clerk,
     hasTickTick: !!(process.env.TICKTICK_CLIENT_ID && process.env.TICKTICK_CLIENT_SECRET)
   });
 });

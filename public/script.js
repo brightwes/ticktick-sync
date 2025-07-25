@@ -6,7 +6,7 @@ class TaskTagger {
         
         this.initializeElements();
         this.bindEvents();
-        this.initializeClerk();
+        this.loadTasks();
     }
     
     initializeElements() {
@@ -26,59 +26,11 @@ class TaskTagger {
         this.resetBtn.addEventListener('click', () => this.resetProcessedTasks());
     }
     
-    async initializeClerk() {
-        try {
-            // Check if Clerk is available
-            if (typeof Clerk === 'undefined') {
-                console.log('Clerk not available, proceeding without authentication');
-                this.loadTasks();
-                return;
-            }
-            
-            await Clerk.load({
-                publishableKey: 'pk_test_YOUR_CLERK_PUBLISHABLE_KEY' // Replace with your actual key
-            });
-            
-            // Listen for authentication state changes
-            Clerk.addListener(({ user }) => {
-                if (user) {
-                    this.loadTasks();
-                } else {
-                    this.showLoginPrompt();
-                }
-            });
-            
-            // Check initial auth state
-            if (Clerk.user) {
-                this.loadTasks();
-            } else {
-                this.showLoginPrompt();
-            }
-        } catch (error) {
-            console.error('Failed to initialize Clerk:', error);
-            // If Clerk fails, try to load tasks anyway
-            this.loadTasks();
-        }
-    }
-    
     async loadTasks() {
         try {
             this.showLoading();
             
-            // Prepare headers
-            const headers = {};
-            if (typeof Clerk !== 'undefined' && Clerk.session) {
-                try {
-                    const token = await Clerk.session.getToken();
-                    if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                    }
-                } catch (error) {
-                    console.log('No Clerk token available');
-                }
-            }
-            
-            const response = await fetch('/api/tasks', { headers });
+            const response = await fetch('/api/tasks');
             
             if (!response.ok) {
                 if (response.status === 401) {
@@ -103,16 +55,17 @@ class TaskTagger {
         this.taskContainer.innerHTML = `
             <div class="no-tasks">
                 <i class="fas fa-lock"></i>
-                <h3>Authentication Required</h3>
-                <p>Please sign in to access your TickTick tasks.</p>
-                <div id="clerk-sign-in-container"></div>
+                <h3>Configuration Required</h3>
+                <p>Please configure your TickTick credentials in the environment variables.</p>
+                <p>You need to add:</p>
+                <ul>
+                    <li>TICKTICK_CLIENT_ID</li>
+                    <li>TICKTICK_CLIENT_SECRET</li>
+                    <li>TICKTICK_USERNAME</li>
+                    <li>TICKTICK_PASSWORD</li>
+                </ul>
             </div>
         `;
-        
-        // Mount Clerk sign-in component if available
-        if (typeof Clerk !== 'undefined' && Clerk.mountSignIn) {
-            Clerk.mountSignIn('#clerk-sign-in-container');
-        }
     }
     
     showLoading() {
@@ -150,7 +103,7 @@ class TaskTagger {
             <div class="no-tasks">
                 <i class="fas fa-info-circle"></i>
                 <h3>No Tasks Found</h3>
-                <p>Either you have no unprocessed tasks, or you need to authenticate first.</p>
+                <p>Either you have no unprocessed tasks, or you need to configure your TickTick credentials.</p>
             </div>
         `;
         this.nextBtn.style.display = 'none';
@@ -234,25 +187,11 @@ class TaskTagger {
             .map(checkbox => checkbox.value);
         
         try {
-            // Prepare headers
-            const headers = {
-                'Content-Type': 'application/json'
-            };
-            
-            if (typeof Clerk !== 'undefined' && Clerk.session) {
-                try {
-                    const token = await Clerk.session.getToken();
-                    if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                    }
-                } catch (error) {
-                    console.log('No Clerk token available');
-                }
-            }
-            
             const response = await fetch(`/api/tasks/${task.id}/tags`, {
                 method: 'POST',
-                headers,
+                headers: {
+                    'Content-Type': 'application/json'
+                },
                 body: JSON.stringify({ tags: selectedTags })
             });
             
@@ -294,23 +233,8 @@ class TaskTagger {
     // Add method to reset processed tasks (for testing)
     async resetProcessedTasks() {
         try {
-            // Prepare headers
-            const headers = {};
-            
-            if (typeof Clerk !== 'undefined' && Clerk.session) {
-                try {
-                    const token = await Clerk.session.getToken();
-                    if (token) {
-                        headers['Authorization'] = `Bearer ${token}`;
-                    }
-                } catch (error) {
-                    console.log('No Clerk token available');
-                }
-            }
-            
             const response = await fetch('/api/reset-processed', {
-                method: 'POST',
-                headers
+                method: 'POST'
             });
             
             if (response.ok) {
