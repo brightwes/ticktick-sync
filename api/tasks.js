@@ -13,6 +13,26 @@ const OAUTH_CONFIG = {
   token_url: 'https://api.ticktick.com/oauth/token'
 };
 
+// Authentication function for TickTick using username/password
+async function authenticateTickTick() {
+  try {
+    // Try OAuth2 first, but if it fails, we'll use username/password
+    const response = await axios.post(`${TICKTICK_API_BASE}/oauth/token`, {
+      client_id: process.env.TICKTICK_CLIENT_ID,
+      client_secret: process.env.TICKTICK_CLIENT_SECRET,
+      grant_type: 'password',
+      username: process.env.TICKTICK_USERNAME || process.env.TICKTICK_EMAIL,
+      password: process.env.TICKTICK_PASSWORD
+    });
+    
+    accessToken = response.data.access_token;
+    return accessToken;
+  } catch (error) {
+    console.error('Authentication failed:', error.message);
+    throw error;
+  }
+}
+
 // Get tasks from TickTick
 async function getTasks() {
   if (!accessToken) {
@@ -91,22 +111,31 @@ module.exports = async (req, res) => {
 
     // Try to get real tasks from TickTick
     try {
-      const tasks = await getTasks();
-      // Filter for unprocessed tasks (no "processed" tag)
-      const unprocessedTasks = tasks.filter(task => 
-        !task.tags || !task.tags.includes('processed')
-      );
+      // First try username/password authentication
+      if (process.env.TICKTICK_USERNAME || process.env.TICKTICK_EMAIL) {
+        try {
+          await authenticateTickTick();
+          const tasks = await getTasks();
+          // Filter for unprocessed tasks (no "processed" tag)
+          const unprocessedTasks = tasks.filter(task => 
+            !task.tags || !task.tags.includes('processed')
+          );
+          
+          // Add tag suggestions to each task
+          const tasksWithSuggestions = unprocessedTasks.map(task => ({
+            ...task,
+            suggestedTags: suggestTags(task.title, task.content)
+          }));
+          
+          res.json(tasksWithSuggestions);
+          return;
+        } catch (authError) {
+          console.error('Username/password auth failed:', authError.message);
+          // Fall through to OAuth2
+        }
+      }
       
-      // Add tag suggestions to each task
-      const tasksWithSuggestions = unprocessedTasks.map(task => ({
-        ...task,
-        suggestedTags: suggestTags(task.title, task.content)
-      }));
-      
-      res.json(tasksWithSuggestions);
-    } catch (authError) {
-      console.error('Authentication error:', authError.message);
-      // Return OAuth2 auth URL for frontend to handle
+      // Fall back to OAuth2
       const authUrl = `${OAUTH_CONFIG.auth_url}?` +
         `client_id=${OAUTH_CONFIG.client_id}&` +
         `redirect_uri=${encodeURIComponent(OAUTH_CONFIG.redirect_uri)}&` +
@@ -123,6 +152,9 @@ module.exports = async (req, res) => {
         requiresAuth: true,
         authUrl: authUrl
       });
+    } catch (authError) {
+      console.error('Authentication error:', authError.message);
+      res.status(500).json({ error: 'Authentication failed' });
     }
   } catch (error) {
     console.error('Error fetching tasks:', error);
