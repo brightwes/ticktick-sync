@@ -206,9 +206,17 @@ function suggestTags(taskTitle, taskContent = '') {
 
 // API Routes
 app.get('/api/tasks', async (req, res) => {
+  console.log('API /api/tasks called');
+  console.log('Environment variables:', {
+    hasClientId: !!process.env.TICKTICK_CLIENT_ID,
+    hasClientSecret: !!process.env.TICKTICK_CLIENT_SECRET,
+    hasAccessToken: !!accessToken
+  });
+  
   try {
     // Check if we have OAuth2 credentials
     if (!process.env.TICKTICK_CLIENT_ID || !process.env.TICKTICK_CLIENT_SECRET) {
+      console.log('No OAuth2 credentials configured');
       return res.status(401).json({ 
         error: 'OAuth2 credentials not configured',
         requiresAuth: true 
@@ -217,12 +225,14 @@ app.get('/api/tasks', async (req, res) => {
 
     // Check if we have an access token
     if (!accessToken) {
+      console.log('No access token available');
       return res.status(401).json({ 
         error: 'Not authenticated',
         requiresAuth: true 
       });
     }
 
+    console.log('Fetching tasks from TickTick...');
     const tasks = await getTasks();
     // Filter for unprocessed tasks (no "processed" tag)
     const unprocessedTasks = tasks.filter(task => 
@@ -235,6 +245,7 @@ app.get('/api/tasks', async (req, res) => {
       suggestedTags: suggestTags(task.title, task.content)
     }));
     
+    console.log(`Found ${tasksWithSuggestions.length} unprocessed tasks`);
     res.json(tasksWithSuggestions);
   } catch (error) {
     console.error('Error fetching tasks:', error);
